@@ -4,8 +4,10 @@ import { LoginDTO } from './authDTO/login.dto';
 import express from 'express';
 import { RegisterDto } from './authDTO/register.dto';
 import { JwtAuthGuard } from './Guards/JwtAuthGuard';
+import { Throttle } from '@nestjs/throttler';
 
 
+@Throttle({ default: { limit: 10, ttl: 60000}}) //5 tentativas por minuto.
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

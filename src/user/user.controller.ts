@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   ParseIntPipe,
   Patch,
@@ -24,9 +25,12 @@ import { AuthGuard } from 'src/security/auth/Guards/AuthGuard';
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+  private readonly logger = new Logger(UserController.name);
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
+    //logamos um evento importante
+    this.logger.log(`User: ${createUserDto.email} created successfully`);
     return this.userService.create(createUserDto);
   }
 
