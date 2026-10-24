@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { createCipheriv, createDecipheriv, privateDecrypt, randomBytes, scrypt } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
 
 @Injectable()
 export class EncryptionService {
@@ -11,14 +11,8 @@ export class EncryptionService {
         if (!password) {
             throw new Error('Encryption key not found or its wrong');
         }
-        this.key= Buffer.alloc(32);
-
-        scrypt(password, 'salt', 32, (err, derivedKey) => {
-            if (err){
-                throw err;
-            }
-            derivedKey.copy(this.key)
-        })
+        // derivação síncrona: a chave fica pronta antes de qualquer encrypt/decrypt
+        this.key = scryptSync(password, 'salt', 32);
     }
 
     encrypt(text: string){

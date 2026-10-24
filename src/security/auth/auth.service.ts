@@ -94,16 +94,16 @@ export class AuthService {
         // payload do JWT
         const payload = { sub: userId.toString(), email, role };
 
-        // gerar access token
+        // access token: curto, assinado com JWT_SECRET
         const access_token = await this.jwt.signAsync(payload, {
             secret: process.env.JWT_SECRET,
-            expiresIn: '7d',
+            expiresIn: (process.env.JWT_ACCESS_EXPIRES_IN ?? '15m') as any,
         });
 
-        // gerar refresh token
+        // refresh token: longo, assinado com um segredo diferente (JWT_REFRESH_SECRET)
         const refreshToken = await this.jwt.signAsync(payload, {
-            secret: process.env.JWT_SECRET,
-            expiresIn: '7d',
+            secret: process.env.JWT_REFRESH_SECRET,
+            expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as any,
         });
 
         return {
@@ -115,7 +115,7 @@ export class AuthService {
     async refreshToken(userId: number, refreshToken: string) {
         // buscar usuário pelo id
         const user = await this.prisma.user.findUnique({
-            where: { id: userId }
+            where: { id: Number(userId) } // o "sub" do JWT chega como string
         });
 
         // verificar se usuário existe e tem refresh token

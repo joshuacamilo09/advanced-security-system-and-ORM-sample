@@ -9,7 +9,7 @@ import { AuthModule } from './security/auth/auth.module';
 import { PrismaService } from 'prisma/PrismaService';
 import { EncryptionModule } from './security/auth/encryption/encryption.module';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerMiddleware } from './security/middleware/loggerMiddleware';
 
@@ -35,7 +35,7 @@ import { LoggerMiddleware } from './security/middleware/loggerMiddleware';
     {
       //Rate Limiting, passar sempre aqui no provider
       provide: APP_GUARD,
-      useClass: ThrottlerModule,
+      useClass: ThrottlerGuard,
     }
   ],
 })

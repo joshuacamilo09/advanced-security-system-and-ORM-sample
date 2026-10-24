@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { helmetConfig } from './security/auth/configCommon/helmet.config';
 import cookieParser from 'cookie-parser';
@@ -6,6 +7,7 @@ import { doubleCsrf } from 'csrf-csrf';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 
 
 
@@ -51,10 +53,12 @@ async function bootstrap() {
     */
   });
 
+  //VALIDATION (global: todos os DTOs são validados e campos desconhecidos são removidos)
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
   //HELMET 
   app.use(helmetConfig());
 
-  await app.listen(process.env.PORT ?? 3000);
   //app.useGlobalInterceptors(new LoggingInterceptor()); //interceptor global (pega o projeto inteiro, esse é o mais usado em projetos reais)
   //app.useGlobalInterceptors(new ErrorCatcherInterceptor());
   //app.useGlobalInterceptors(new TimeoutInterceptor());
@@ -68,24 +72,37 @@ async function bootstrap() {
   ],
     credentials: true, // necessário para cookies, sessões e CSRF
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   });
 
 
   //CSRF
+  // O refresh token vive num cookie HttpOnly (path /auth/refresh), por isso é a única rota
+  // autenticada por cookie e a única que precisa de proteção CSRF (double-submit cookie).
+  // O cliente pede o token em GET /auth/refresh/csrf-token e envia-o no header X-CSRF-Token.
   app.use(cookieParser());
   const config = app.get(ConfigService);
-  const csrfSecret = config.get('CSRF_SECRET');
-  const {doubleCsrfProtection} = doubleCsrf({
+  const csrfSecret = config.getOrThrow<string>('CSRF_SECRET');
+  const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
     getSecret: () => csrfSecret,
-    getSessionIdentifier: (req) => req.cookies['refresh_token'], //ou outra logica para gerar id sessions
+    getSessionIdentifier: (req) => req.cookies?.['refresh_token'] ?? '',
+    cookieName: 'csrf_token',
     cookieOptions: {
       httpOnly: true,
       sameSite: 'strict',
-      secure: true
-    }
+      secure: process.env.NODE_ENV === 'production',
+      path: '/auth/refresh',
+    },
   });
-  app.use(doubleCsrfProtection);
+
+  const http = app.getHttpAdapter();
+  http.get('/auth/refresh/csrf-token', (req: Request, res: Response) => {
+    res.json({ csrfToken: generateCsrfToken(req, res) });
+  });
+  app.use('/auth/refresh', doubleCsrfProtection);
+
+  // listen só depois de registar todos os middlewares (CORS, cookies, CSRF)
+  await app.listen(process.env.PORT ?? 3000);
 
   
   //Rate Limiting (registar no app.module.ts)

@@ -4,8 +4,11 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient(); 
 
 async function main(){
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@seila.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'conas';
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+        throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD before running the seed');
+    }
 
     const existingAdmin = await prisma.user.findUnique({
         where: {
@@ -15,7 +18,7 @@ async function main(){
 
     if (!existingAdmin) {
 
-        const hashedPassword = await bcrypt.hash(adminPassword ?? '', 10);
+        const hashedPassword = await bcrypt.hash(adminPassword, 12);
         await prisma.user.create({
             data: {
                 email: adminEmail,
